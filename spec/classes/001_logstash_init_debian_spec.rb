@@ -25,14 +25,14 @@ describe 'logstash', :type => 'class' do
         it { should contain_class('logstash::service').that_requires('Class[logstash::package]').that_requires('Class[logstash::config]') }
 
         it { should contain_file('/etc/logstash') }
-        it { should contain_file('/etc/logstash/conf.d').with(:require => 'File[/etc/logstash]') } 
-        it { should contain_file('/etc/logstash/patterns').with(:require => 'File[/etc/logstash]') }
-        it { should contain_file('/etc/logstash/plugins').with(:require => 'File[/etc/logstash]') }
-        it { should contain_file('/etc/logstash/plugins/logstash').with(:require => 'File[/etc/logstash]') }
-        it { should contain_file('/etc/logstash/plugins/logstash/inputs').with(:require => 'File[/etc/logstash]') }
-        it { should contain_file('/etc/logstash/plugins/logstash/outputs').with(:require => 'File[/etc/logstash]') }
-        it { should contain_file('/etc/logstash/plugins/logstash/filters').with(:require => 'File[/etc/logstash]') }
-        it { should contain_file('/etc/logstash/plugins/logstash/codecs').with(:require => 'File[/etc/logstash]') }
+        it { should contain_file('/etc/logstash/conf.d') }
+        it { should contain_file('/etc/logstash/patterns') }
+        it { should contain_file('/etc/logstash/plugins') }
+        it { should contain_file('/etc/logstash/plugins/logstash') }
+        it { should contain_file('/etc/logstash/plugins/logstash/inputs') }
+        it { should contain_file('/etc/logstash/plugins/logstash/outputs') }
+        it { should contain_file('/etc/logstash/plugins/logstash/filters') }
+        it { should contain_file('/etc/logstash/plugins/logstash/codecs') }
 
         it { should contain_file_concat('ls-config') }
 
@@ -63,7 +63,7 @@ describe 'logstash', :type => 'class' do
           context 'with auto upgrade enabled' do
 
             let :params do {
-              :autoupgrade => true
+              :auto_upgrade => true
             } end
 
             it { should contain_class('logstash::package') }
@@ -146,140 +146,6 @@ describe 'logstash', :type => 'class' do
         end
 
       end # package
-
-
-      context 'Contrib package installation' do
-
-        context 'via repository' do
-
-          context 'with default settings' do
-
-            let :params do {
-              :install_contrib => true
-            } end
-
-            it { should contain_class('logstash::package') }
-            it { should contain_logstash__package__install('logstash') }
-            it { should contain_logstash__package__install('logstash-contrib') }
-            it { should contain_package('logstash-contrib').with(:ensure => 'present') }
-          end
-
-          context 'with specified version' do
-
-            let :params do {
-              :install_contrib => true,
-              :contrib_version => '1.0'
-            } end
-
-            it { should contain_class('logstash::package') }
-            it { should contain_logstash__package__install('logstash') }
-            it { should contain_logstash__package__install('logstash-contrib') }
-            it { should contain_package('logstash-contrib').with(:ensure => '1.0') }
-          end
-
-          context 'with auto upgrade enabled' do
-
-            let :params do {
-              :install_contrib => true,
-              :autoupgrade => true
-            } end
-
-            it { should contain_class('logstash::package') }
-            it { should contain_logstash__package__install('logstash') }
-            it { should contain_logstash__package__install('logstash-contrib') }
-            it { should contain_package('logstash-contrib').with(:ensure => 'latest') }
-          end
-
-        end
-
-        context 'via package_url setting' do
-
-          context 'using puppet:/// schema' do
-
-            let :params do {
-              :install_contrib => true,
-              :package_url => 'https://www.domain.com/path/to/logstash.deb',
-              :contrib_package_url => 'puppet:///path/to/logstash-contrib.deb'
-            } end
-
-            it { should contain_class('logstash::package') }
-            it { should contain_logstash__package__install('logstash') }
-            it { should contain_logstash__package__install('logstash-contrib') }
-            it { should contain_file('/var/lib/logstash/swdl/logstash-contrib.deb').with(:source => 'puppet:///path/to/logstash-contrib.deb', :backup => false) }
-            it { should contain_package('logstash-contrib').with(:ensure => 'present', :source => '/var/lib/logstash/swdl/logstash-contrib.deb', :provider => 'dpkg') }
-          end
-
-          context 'using http:// schema' do
-
-            let :params do {
-              :install_contrib => true,
-              :package_url => 'https://www.domain.com/path/to/logstash.deb',
-              :contrib_package_url => 'http://www.domain.com/path/to/logstash-contrib.deb'
-            } end
-
-            it { should contain_class('logstash::package') }
-            it { should contain_logstash__package__install('logstash') }
-            it { should contain_logstash__package__install('logstash-contrib') }
-            it { should contain_exec('create_package_dir_logstash').with(:command => 'mkdir -p /var/lib/logstash/swdl') }
-            it { should contain_file('/var/lib/logstash/swdl').with(:purge => false, :force => false, :require => "Exec[create_package_dir_logstash]") }
-            it { should contain_exec('download_package_logstash_logstash-contrib').with(:command => 'wget --no-check-certificate -O /var/lib/logstash/swdl/logstash-contrib.deb http://www.domain.com/path/to/logstash-contrib.deb 2> /dev/null', :require => 'File[/var/lib/logstash/swdl]') }
-            it { should contain_package('logstash-contrib').with(:ensure => 'present', :source => '/var/lib/logstash/swdl/logstash-contrib.deb', :provider => 'dpkg') }
-          end
-
-          context 'using https:// schema' do
-
-            let :params do {
-              :install_contrib => true,
-              :package_url => 'https://www.domain.com/path/to/logstash.deb',
-              :contrib_package_url => 'https://www.domain.com/path/to/logstash-contrib.deb'
-            } end
-
-            it { should contain_class('logstash::package') }
-            it { should contain_logstash__package__install('logstash') }
-            it { should contain_logstash__package__install('logstash-contrib') }
-            it { should contain_exec('create_package_dir_logstash').with(:command => 'mkdir -p /var/lib/logstash/swdl') }
-            it { should contain_file('/var/lib/logstash/swdl').with(:purge => false, :force => false, :require => 'Exec[create_package_dir_logstash]') }
-            it { should contain_exec('download_package_logstash_logstash-contrib').with(:command => 'wget --no-check-certificate -O /var/lib/logstash/swdl/logstash-contrib.deb https://www.domain.com/path/to/logstash-contrib.deb 2> /dev/null', :require => 'File[/var/lib/logstash/swdl]') }
-            it { should contain_package('logstash-contrib').with(:ensure => 'present', :source => '/var/lib/logstash/swdl/logstash-contrib.deb', :provider => 'dpkg') }
-          end
-
-          context 'using ftp:// schema' do
-
-            let :params do {
-              :install_contrib => true,
-              :package_url => 'https://www.domain.com/path/to/logstash.deb',
-              :contrib_package_url => 'ftp://www.domain.com/path/to/logstash-contrib.deb'
-            } end
-
-            it { should contain_class('logstash::package') }
-            it { should contain_logstash__package__install('logstash') }
-            it { should contain_logstash__package__install('logstash-contrib') }
-            it { should contain_exec('create_package_dir_logstash').with(:command => 'mkdir -p /var/lib/logstash/swdl') }
-            it { should contain_file('/var/lib/logstash/swdl').with(:purge => false, :force => false, :require => 'Exec[create_package_dir_logstash]') }
-            it { should contain_exec('download_package_logstash_logstash-contrib').with(:command => 'wget --no-check-certificate -O /var/lib/logstash/swdl/logstash-contrib.deb ftp://www.domain.com/path/to/logstash-contrib.deb 2> /dev/null', :require => 'File[/var/lib/logstash/swdl]') }
-            it { should contain_package('logstash-contrib').with(:ensure => 'present', :source => '/var/lib/logstash/swdl/logstash-contrib.deb', :provider => 'dpkg') }
-          end
-
-          context 'using file:// schema' do
-
-            let :params do {
-              :install_contrib => true,
-              :package_url => 'https://www.domain.com/path/to/logstash.deb',
-              :contrib_package_url => 'file:/path/to/logstash-contrib.deb'
-            } end
-
-            it { should contain_class('logstash::package') }
-            it { should contain_logstash__package__install('logstash') }
-            it { should contain_logstash__package__install('logstash-contrib') }
-            it { should contain_exec('create_package_dir_logstash').with(:command => 'mkdir -p /var/lib/logstash/swdl') }
-            it { should contain_file('/var/lib/logstash/swdl').with(:purge => false, :force => false, :require => 'Exec[create_package_dir_logstash]') }
-            it { should contain_file('/var/lib/logstash/swdl/logstash-contrib.deb').with(:source => '/path/to/logstash-contrib.deb', :backup => false) }
-            it { should contain_package('logstash-contrib').with(:ensure => 'present', :source => '/var/lib/logstash/swdl/logstash-contrib.deb', :provider => 'dpkg') }
-          end
-
-        end
-
-      end # contrib package
 
       context 'service setup' do
 
@@ -374,8 +240,9 @@ describe 'logstash', :type => 'class' do
             :repo_version => '1.3'
           } end
 
-          it { should contain_class('logstash::repo').that_requires('Anchor[logstash::begin]') }
+          it { should contain_class('logstash::repo') }
           it { should contain_class('apt') }
+          it { should contain_package('logstash').that_requires('Class[Apt::Update]') }
           it { should contain_apt__source('logstash').with(:release => 'stable', :repos => 'main', :location => 'http://packages.elasticsearch.org/logstash/1.3/debian') }
 
         end

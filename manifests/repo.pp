@@ -1,30 +1,19 @@
-# == Class: logstash::repo
+# This class manages package repositories for Logstash.
 #
-# This class exists to install and manage yum and apt repositories
-# that contain logstash official logstash packages
+# It is usually used only by the top-level `logstash` class. It's unlikely
+# that you will need to declare this class yourself.
 #
+# @example Include this class to ensure its resources are available.
+#   include logstash::repo
 #
-# === Parameters
-#
-# This class does not provide any parameters.
-#
-#
-# === Examples
-#
-# This class may be imported by other classes to use its functionality:
-#   class { 'logstash::repo': }
-#
-# It is not intended to be used directly by external resources like node
-# definitions or other modules.
-#
-#
-# === Authors
-#
-# * Phil Fenstermacher <mailto:phillip.fenstermacher@gmail.com>
-# * Richard Pijnenburg <mailto:richard.pijnenburg@elasticsearch.com>
-# * Matthias Baur <mailto:matthias.baur@dmc.de>
+# @author https://github.com/elastic/puppet-logstash/graphs/contributors
 #
 class logstash::repo {
+  $version = $logstash::repo_version
+  $repo_name = "elastic-${version}"
+  $url_root = "https://artifacts.elastic.co/packages/${version}"
+  $gpg_key_url = 'https://artifacts.elastic.co/GPG-KEY-elasticsearch'
+  $gpg_key_id = '46095ACC8548582C1A2699A9D27D666CD88E42B4'
 
   Exec {
     path      => [ '/bin', '/usr/bin', '/usr/local/bin' ],
@@ -33,62 +22,57 @@ class logstash::repo {
 
   case $::osfamily {
     'Debian': {
-      if !defined(Class['apt']) {
-        class { 'apt': }
-      }
+      include apt
 
-      apt::source { 'logstash':
-        location    => "http://packages.elasticsearch.org/logstash/${logstash::repo_version}/debian",
-        release     => 'stable',
-        repos       => 'main',
-        key         => '46095ACC8548582C1A2699A9D27D666CD88E42B4',
-        key_server  => 'pgp.mit.edu',
-        include_src => false,
+      apt::source { $repo_name:
+        location => "${url_root}/apt",
+        release  => 'stable',
+        repos    => 'main',
+        key      => {
+          'id'     => $gpg_key_id,
+          'source' => $gpg_key_url,
+        },
+        include  => {
+          'src' => false,
+        },
+        notify   => [
+          Class['apt::update'],
+          Exec['apt_update'],
+        ],
       }
     }
     'RedHat': {
-      yumrepo { 'logstash':
+      yumrepo { $repo_name:
         descr    => 'Logstash Centos Repo',
-        baseurl  => "http://packages.elasticsearch.org/logstash/${logstash::repo_version}/centos",
+        baseurl  => "${url_root}/yum",
         gpgcheck => 1,
-        gpgkey   => 'http://packages.elasticsearch.org/GPG-KEY-elasticsearch',
+        gpgkey   => $gpg_key_url,
         enabled  => 1,
       }
+
+      Yumrepo[$repo_name] -> Package<|tag == 'logstash'|>
     }
     'Suse' : {
-      case $::operatingsystem {
-        'SLES': {
-          $centos_version = 'centos5'
-          $gpg_key = 'GPG-KEY-elasticsearch-v3'
-          $gpg_id = '465C1136'
-        }
-        'OpenSuSE': {
-          $centos_version = 'centos'
-          $gpg_key = 'GPG-KEY-elasticsearch'
-          $gpg_id = 'D88E42B4'
-        }
-        default: {
-          fail("Unknown Operating system (${::operatingsystem})for Suse family")
-        }
-      }
-
-      zypprepo { 'logstash':
-        baseurl     => "http://packages.elasticsearch.org/logstash/${logstash::repo_version}/${centos_version}/",
+      zypprepo { $repo_name:
+        baseurl     => "${url_root}/yum",
         enabled     => 1,
         autorefresh => 1,
         name        => 'logstash',
         gpgcheck    => 1,
-        gpgkey      => "http://packages.elasticsearch.org/${gpg_key}",
+        gpgkey      => $gpg_key_url,
         type        => 'yum',
       }
 
       # Workaround until zypprepo allows the adding of the keys
       # https://github.com/deadpoint/puppet-zypprepo/issues/4
       exec { 'logstash_suse_import_gpg':
-        command =>  "wget -q -O /tmp/RPM-GPG-KEY-elasticsearch http://packages.elasticsearch.org/${gpg_key}; rpm --import /tmp/RPM-GPG-KEY-elasticsearch; rm /tmp/RPM-GPG-KEY-elasticsearch",
-        unless  =>  "test $(rpm -qa gpg-pubkey | grep -i \"${gpg_id}\" | wc -l) -eq 1 ",
-        notify  =>  Zypprepo['logstash'],
+        command => "wget -q -O /tmp/RPM-GPG-KEY-elasticsearch ${gpg_key_url}; \
+                    rpm --import /tmp/RPM-GPG-KEY-elasticsearch; \
+                    rm /tmp/RPM-GPG-KEY-elasticsearch",
+        unless  => "test $(rpm -qa gpg-pubkey | grep -i \"${gpg_key_id}\" | wc -l) -eq 1 ",
       }
+
+      Exec['logstash_suse_import_gpg'] ~> Zypprepo['logstash'] -> Package<|tag == 'logstash'|>
     }
     default: {
       fail("\"${module_name}\" provides no repository information for OSfamily \"${::osfamily}\"")
